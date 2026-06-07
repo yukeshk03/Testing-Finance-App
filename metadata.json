@@ -1,0 +1,6 @@
+{
+  "name": "Android Finance Tracker",
+  "description": "An interactive Android finance app emulator with automatic bank SMS parsing, smart insights, budget controls, and detailed analytics preloaded with CSV logs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

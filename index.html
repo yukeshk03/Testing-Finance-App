@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Finance Tracker" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <title>Finance Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#050505] text-[#e5e5e5]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('[SW] Registered:', reg.scope);
+          }).catch(err => {
+            console.error('[SW] Registration failed:', err);
+          });
+
+          // Listen for SW messages (notification tap → open SMS tab)
+          navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data && event.data.type === 'OPEN_SMS_TAB') {
+              window.__openSmsTab && window.__openSmsTab(event.data.smsId);
+            }
+          });
+        });
+      }
+
+      // Handle ?tab=sms URL parameter (when opening from notification)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('tab') === 'sms') {
+        window.__initialTab = 'sms';
+      }
+    </script>
+  </body>
+</html>

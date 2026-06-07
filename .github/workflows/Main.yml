@@ -1,0 +1,94 @@
+name: Build Finance Tracker APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ── 1. Checkout code ─────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Java 21 (must come BEFORE Android SDK) ─────────────────
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # ── 3. Set up Node.js 22 (latest LTS, avoids deprecation warning) ─────
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # ── 4. Install Android SDK manually (avoids broken setup-android) ─────
+      - name: Install Android SDK
+        run: |
+          # Install command line tools
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/build-tools/34.0.0" >> $GITHUB_PATH
+
+      # ── 5. Accept licenses and install required SDK packages ──────────────
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
+          sdkmanager --sdk_root=$HOME/android-sdk \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+
+      # ── 6. Install npm packages ───────────────────────────────────────────
+      - name: Install npm packages
+        run: npm ci --legacy-peer-deps
+
+      # ── 7. Build React app ────────────────────────────────────────────────
+      - name: Build React app
+        run: npm run build
+
+      # ── 8. Sync Capacitor ─────────────────────────────────────────────────
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      # ── 9. Make Gradle executable ─────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # ── 10. Build debug APK ───────────────────────────────────────────────
+      - name: Build debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+
+      # ── 11. Upload APK artifact ───────────────────────────────────────────
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-tracker-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Success
+        run: echo "APK built! Download from Artifacts section above."
